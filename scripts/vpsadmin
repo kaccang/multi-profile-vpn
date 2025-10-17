@@ -1,0 +1,448 @@
+#!/bin/bash
+
+# ============================================
+# VPN Multi-Profile Manager - Main CLI
+# ============================================
+
+set -e
+
+BASE_DIR="/etc/xray-multi"
+
+# Load dependencies
+source "${BASE_DIR}/scripts/colors.sh"
+source "${BASE_DIR}/scripts/utils.sh"
+
+# Load environment
+load_env
+
+# ============================================
+# Dashboard Functions
+# ============================================
+
+show_dashboard() {
+    print_banner
+
+    # System Resources
+    local cpu_usage=$(get_cpu_usage)
+    local mem_used=$(get_mem_usage)
+    local mem_total=$(get_mem_total)
+    local disk_usage=$(get_disk_usage)
+    local profile_count=$(get_profile_count)
+
+    # Calculate allocated resources
+    local allocated_cpu=0
+    local allocated_mem=0
+
+    if [[ -d "${BASE_DIR}/profiles" ]]; then
+        for profile in "${BASE_DIR}/profiles"/*; do
+            if [[ -d "$profile" ]]; then
+                local cpu=$(get_profile_meta "$(basename $profile)" "CPU")
+                local mem=$(get_profile_meta "$(basename $profile)" "RAM")
+                allocated_cpu=$((allocated_cpu + ${cpu:-0}))
+                allocated_mem=$((allocated_mem + ${mem:-0}))
+            fi
+        done
+    fi
+
+    # Get total bandwidth (placeholder - will be calculated from vnstat)
+    local total_bandwidth="56TB"  # TODO: Calculate from all profiles
+
+    echo -e "${CYAN}┌─────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│${NC} ${BOLD}SYSTEM RESOURCES${NC}                                                ${CYAN}│${NC}"
+    echo -e "${CYAN}├─────────────────────────────────────────────────────────────────┤${NC}"
+    printf "${CYAN}│${NC} CPU Usage       : ${WHITE}%5.1f%%${NC} / ${GREEN}%d%%${NC}" $cpu_usage $((allocated_cpu > 400 ? allocated_cpu : 400))
+    printf "      (${YELLOW}%d%%${NC} allocated)           ${CYAN}│${NC}\n" $allocated_cpu
+    printf "${CYAN}│${NC} RAM Usage       : ${WHITE}%5dMB${NC} / ${GREEN}%dMB${NC}" $mem_used $mem_total
+    printf "  (${YELLOW}%dMB${NC} allocated)        ${CYAN}│${NC}\n" $allocated_mem
+    printf "${CYAN}│${NC} Bandwidth Global: ${WHITE}%-10s${NC}                                      ${CYAN}│${NC}\n" "$total_bandwidth"
+    printf "${CYAN}│${NC} Active Profiles : ${GREEN}%d${NC} / ${YELLOW}%d${NC}                                            ${CYAN}│${NC}\n" $profile_count ${MAX_PROFILES:-10}
+    printf "${CYAN}│${NC} Disk Usage      : ${WHITE}%d%%${NC}                                                ${CYAN}│${NC}\n" $disk_usage
+    echo -e "${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+
+    # Notifications
+    show_notifications
+}
+
+show_notifications() {
+    echo -e "${CYAN}┌─────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│${NC} ${BOLD}NOTIFICATIONS${NC}                                                   ${CYAN}│${NC}"
+    echo -e "${CYAN}├─────────────────────────────────────────────────────────────────┤${NC}"
+
+    local has_notifications=false
+
+    # Check each profile
+    if [[ -d "${BASE_DIR}/profiles" ]]; then
+        for profile_dir in "${BASE_DIR}/profiles"/*; do
+            if [[ -d "$profile_dir" ]]; then
+                local profile_name=$(basename "$profile_dir")
+                local expire_date=$(get_profile_meta "$profile_name" "EXPIRED")
+                local bw_quota=$(get_profile_meta "$profile_name" "BANDWIDTH")
+                local bw_used=$(get_profile_meta "$profile_name" "BANDWIDTH_USED")
+
+                # Check expiration
+                if [[ -n "$expire_date" ]]; then
+                    local days_left=$(days_until_expiration "$expire_date")
+
+                    if (( days_left <= 0 )); then
+                        printf "${CYAN}│${NC} ${RED}⏰${NC}  Profile \"${YELLOW}%s${NC}\" - ${RED}EXPIRED${NC} on %s" "$profile_name" "$expire_date"
+                        printf "%*s${CYAN}│${NC}\n" $((40 - ${#profile_name} - ${#expire_date})) ""
+                        has_notifications=true
+                    elif (( days_left <= 5 )); then
+                        printf "${CYAN}│${NC} ${YELLOW}⏰${NC}  Profile \"${YELLOW}%s${NC}\" - Expiring in ${YELLOW}%d days${NC}" "$profile_name" $days_left
+                        printf "%*s${CYAN}│${NC}\n" $((30 - ${#profile_name})) ""
+                        has_notifications=true
+                    fi
+                fi
+
+                # Check bandwidth
+                if [[ -n "$bw_quota" ]] && [[ -n "$bw_used" ]]; then
+                    local bw_percent=$(bc <<< "scale=0; ($bw_used * 100) / $bw_quota")
+
+                    if (( bw_percent >= 100 )); then
+                        printf "${CYAN}│${NC} ${RED}⚠️${NC}  Profile \"${YELLOW}%s${NC}\" - Bandwidth ${RED}EXCEEDED${NC} (%.1fTB/%.0fTB)" "$profile_name" \
+                            $(bc <<< "scale=1; $bw_used / 1024") $(bc <<< "scale=0; $bw_quota / 1024")
+                        printf "%*s${CYAN}│${NC}\n" $((20 - ${#profile_name})) ""
+                        has_notifications=true
+                    elif (( bw_percent >= 90 )); then
+                        printf "${CYAN}│${NC} ${YELLOW}⚠️${NC}  Profile \"${YELLOW}%s${NC}\" - Bandwidth ${YELLOW}%d%%${NC} used (%.1fTB/%.0fTB)" "$profile_name" $bw_percent \
+                            $(bc <<< "scale=1; $bw_used / 1024") $(bc <<< "scale=0; $bw_quota / 1024")
+                        printf "%*s${CYAN}│${NC}\n" $((15 - ${#profile_name})) ""
+                        has_notifications=true
+                    fi
+                fi
+            fi
+        done
+    fi
+
+    if [[ "$has_notifications" == "false" ]]; then
+        printf "${CYAN}│${NC} ${GREEN}✅${NC}  All profiles healthy - No issues detected                  ${CYAN}│${NC}\n"
+    fi
+
+    echo -e "${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+}
+
+# ============================================
+# Main Menu
+# ============================================
+
+show_main_menu() {
+    echo -e "${CYAN}┌─────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│${NC} ${BOLD}MAIN MENU${NC}                                                       ${CYAN}│${NC}"
+    echo -e "${CYAN}├─────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}1)${NC}  List All Profiles                                          ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}2)${NC}  Create New Profile                                         ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}3)${NC}  Delete Profile                                             ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}4)${NC}  Access Profile (SSH)                                       ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}5)${NC}  Manage Profile Settings                                    ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}6)${NC}  Extend Profile Expiration                                  ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}7)${NC}  Extend Profile Bandwidth                                   ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}8)${NC}  Backup Profile                                             ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}9)${NC}  Restore Profile                                            ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}10)${NC} Global Backup (All Profiles)                              ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}11)${NC} Global Restore                                             ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}12)${NC} System Settings                                            ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}13)${NC} View Logs                                                  ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}14)${NC} Health Check Status                                        ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}0)${NC}  Exit                                                       ${CYAN}│${NC}"
+    echo -e "${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+}
+
+# ============================================
+# Menu Actions
+# ============================================
+
+action_list_profiles() {
+    clear
+    print_banner
+
+    echo -e "${CYAN}┌─────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│${NC} ${BOLD}PROFILE LIST${NC}                                                    ${CYAN}│${NC}"
+    echo -e "${CYAN}├─────────────────────────────────────────────────────────────────┤${NC}"
+
+    if [[ ! -d "${BASE_DIR}/profiles" ]] || [[ -z "$(ls -A ${BASE_DIR}/profiles 2>/dev/null)" ]]; then
+        echo -e "${CYAN}│${NC} ${YELLOW}No profiles found${NC}                                             ${CYAN}│${NC}"
+    else
+        printf "${CYAN}│${NC} ${WHITE}%-3s %-12s %-20s %-8s %-10s${NC}    ${CYAN}│${NC}\n" "#" "Name" "Domain" "Status" "Expired"
+        echo -e "${CYAN}├─────────────────────────────────────────────────────────────────┤${NC}"
+
+        local i=1
+        for profile_dir in "${BASE_DIR}/profiles"/*; do
+            if [[ -d "$profile_dir" ]]; then
+                local profile_name=$(basename "$profile_dir")
+                local domain=$(get_profile_meta "$profile_name" "DOMAIN")
+                local expire_date=$(get_profile_meta "$profile_name" "EXPIRED")
+                local status=$(get_profile_meta "$profile_name" "STATUS")
+
+                # Calculate expiration
+                local days_left=$(days_until_expiration "$expire_date")
+                local expire_display
+                if (( days_left <= 0 )); then
+                    expire_display="${RED}Expired${NC}"
+                elif (( days_left <= 5 )); then
+                    expire_display="${YELLOW}${days_left}d left${NC}"
+                else
+                    expire_display="${GREEN}${days_left}d left${NC}"
+                fi
+
+                # Status color
+                local status_display
+                if [[ "$status" == "active" ]]; then
+                    status_display="${GREEN}Active${NC}"
+                else
+                    status_display="${RED}Stopped${NC}"
+                fi
+
+                printf "${CYAN}│${NC} ${WHITE}%-3d${NC} %-12s %-20s " $i "$profile_name" "$domain"
+                echo -e "$status_display   $expire_display     ${CYAN}│${NC}"
+
+                i=$((i + 1))
+            fi
+        done
+    fi
+
+    echo -e "${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    press_any_key
+}
+
+action_create_profile() {
+    "${BASE_DIR}/scripts/profile-manager.sh" create
+}
+
+action_delete_profile() {
+    "${BASE_DIR}/scripts/profile-manager.sh" delete
+}
+
+action_access_profile() {
+    "${BASE_DIR}/scripts/profile-manager.sh" access
+}
+
+action_manage_profile() {
+    "${BASE_DIR}/scripts/profile-manager.sh" manage
+}
+
+action_extend_expiration() {
+    "${BASE_DIR}/scripts/profile-manager.sh" extend-expiration
+}
+
+action_extend_bandwidth() {
+    "${BASE_DIR}/scripts/profile-manager.sh" extend-bandwidth
+}
+
+action_backup_profile() {
+    "${BASE_DIR}/scripts/backup-manager.sh" profile
+}
+
+action_restore_profile() {
+    "${BASE_DIR}/scripts/backup-manager.sh" restore
+}
+
+action_global_backup() {
+    "${BASE_DIR}/scripts/backup-manager.sh" global
+}
+
+action_global_restore() {
+    "${BASE_DIR}/scripts/backup-manager.sh" global-restore
+}
+
+action_system_settings() {
+    clear
+    print_banner
+
+    echo -e "${CYAN}┌─────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│${NC} ${BOLD}SYSTEM SETTINGS${NC}                                                 ${CYAN}│${NC}"
+    echo -e "${CYAN}├─────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}1)${NC}  Edit .env Configuration                                    ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}2)${NC}  Configure Telegram Alerts                                  ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}3)${NC}  Configure S3 Backup                                        ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}4)${NC}  Configure rclone Backup                                    ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}5)${NC}  View Current Configuration                                 ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}0)${NC}  Back to Main Menu                                          ${CYAN}│${NC}"
+    echo -e "${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+
+    read -p "$(echo -e ${WHITE}Select option [0-5]: ${NC})" choice
+
+    case $choice in
+        1) nano "${BASE_DIR}/.env" ;;
+        2) configure_telegram ;;
+        3) configure_s3 ;;
+        4) configure_rclone ;;
+        5) view_configuration ;;
+        0) return ;;
+        *) print_error "Invalid option" ; sleep 1 ;;
+    esac
+}
+
+action_view_logs() {
+    clear
+    print_banner
+
+    echo -e "${CYAN}┌─────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│${NC} ${BOLD}LOGS${NC}                                                            ${CYAN}│${NC}"
+    echo -e "${CYAN}├─────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}1)${NC}  VPSAdmin Log                                               ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}2)${NC}  SSL Manager Log                                            ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}3)${NC}  Health Check Log                                           ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}4)${NC}  Backup Log                                                 ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}0)${NC}  Back to Main Menu                                          ${CYAN}│${NC}"
+    echo -e "${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+
+    read -p "$(echo -e ${WHITE}Select option [0-4]: ${NC})" choice
+
+    case $choice in
+        1) tail -f "${BASE_DIR}/logs/vpsadmin.log" ;;
+        2) tail -f "${BASE_DIR}/logs/ssl-manager.log" ;;
+        3) tail -f "${BASE_DIR}/logs/health-check.log" ;;
+        4) tail -f "${BASE_DIR}/logs/backup.log" ;;
+        0) return ;;
+        *) print_error "Invalid option" ; sleep 1 ;;
+    esac
+}
+
+action_health_status() {
+    "${BASE_DIR}/scripts/health-check.sh" status
+    press_any_key
+}
+
+# ============================================
+# Helper Actions
+# ============================================
+
+configure_telegram() {
+    clear
+    print_banner
+    echo -e "${YELLOW}Configure Telegram Alerts${NC}"
+    echo ""
+
+    read -p "Telegram Bot Token: " bot_token
+    read -p "Telegram Chat ID: " chat_id
+
+    sed -i "s|TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=\"${bot_token}\"|" "${BASE_DIR}/.env"
+    sed -i "s|TELEGRAM_CHAT_ID=.*|TELEGRAM_CHAT_ID=\"${chat_id}\"|" "${BASE_DIR}/.env"
+
+    print_success "Telegram configuration saved"
+
+    # Test
+    if confirm_action "Send test message?"; then
+        send_telegram "🔔 *VPN Multi-Profile Manager*\nTelegram alerts configured successfully!"
+        print_success "Test message sent"
+    fi
+
+    press_any_key
+}
+
+configure_s3() {
+    clear
+    print_banner
+    echo -e "${YELLOW}Configure AWS S3 Backup${NC}"
+    echo ""
+
+    read -p "AWS Access Key ID: " access_key
+    read -p "AWS Secret Access Key: " secret_key
+    read -p "AWS Region [ap-southeast-1]: " region
+    region=${region:-ap-southeast-1}
+    read -p "S3 Bucket Name: " bucket
+
+    sed -i "s|AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=\"${access_key}\"|" "${BASE_DIR}/.env"
+    sed -i "s|AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=\"${secret_key}\"|" "${BASE_DIR}/.env"
+    sed -i "s|AWS_REGION=.*|AWS_REGION=\"${region}\"|" "${BASE_DIR}/.env"
+    sed -i "s|AWS_BUCKET_NAME=.*|AWS_BUCKET_NAME=\"${bucket}\"|" "${BASE_DIR}/.env"
+
+    print_success "S3 configuration saved"
+    press_any_key
+}
+
+configure_rclone() {
+    clear
+    print_banner
+    echo -e "${YELLOW}Configure rclone Backup${NC}"
+    echo ""
+    echo "Running rclone config..."
+    echo ""
+
+    rclone config
+
+    echo ""
+    read -p "Enter remote name (from rclone config): " remote_name
+    read -p "Enter backup path [VPN-Backups]: " backup_path
+    backup_path=${backup_path:-VPN-Backups}
+
+    sed -i "s|RCLONE_REMOTE=.*|RCLONE_REMOTE=\"${remote_name}\"|" "${BASE_DIR}/.env"
+    sed -i "s|RCLONE_BACKUP_PATH=.*|RCLONE_BACKUP_PATH=\"${backup_path}\"|" "${BASE_DIR}/.env"
+
+    print_success "rclone configuration saved"
+    press_any_key
+}
+
+view_configuration() {
+    clear
+    print_banner
+    echo -e "${YELLOW}Current Configuration${NC}"
+    echo ""
+
+    cat "${BASE_DIR}/.env" | grep -v "PASSWORD\|SECRET\|TOKEN" | grep -v "^#" | grep -v "^$"
+
+    echo ""
+    press_any_key
+}
+
+# ============================================
+# Main Loop
+# ============================================
+
+main_loop() {
+    while true; do
+        clear
+        show_dashboard
+        show_main_menu
+
+        read -p "$(echo -e ${WHITE}Select option [0-14]: ${NC})" choice
+
+        case $choice in
+            1) action_list_profiles ;;
+            2) action_create_profile ;;
+            3) action_delete_profile ;;
+            4) action_access_profile ;;
+            5) action_manage_profile ;;
+            6) action_extend_expiration ;;
+            7) action_extend_bandwidth ;;
+            8) action_backup_profile ;;
+            9) action_restore_profile ;;
+            10) action_global_backup ;;
+            11) action_global_restore ;;
+            12) action_system_settings ;;
+            13) action_view_logs ;;
+            14) action_health_status ;;
+            0)
+                clear
+                print_success "Goodbye!"
+                exit 0
+                ;;
+            *)
+                print_error "Invalid option"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================
+# Entry Point
+# ============================================
+
+check_root
+
+# Check if installation is complete
+if [[ ! -f "${BASE_DIR}/.env" ]]; then
+    print_error "VPN Multi-Profile Manager not installed properly"
+    print_info "Please run setup.sh first"
+    exit 1
+fi
+
+# Run main loop
+main_loop

@@ -1,0 +1,74 @@
+# ============================================
+# VPN Multi-Profile Manager - .gitignore
+# ============================================
+
+# Environment files with credentials
+.env
+.env.local
+.env.*.local
+
+# Profile data (contains user configs and certs)
+profiles/
+ssl-manager/certs/
+ssl-manager/acme.sh/
+ssl-manager/queue.json
+
+# Backups
+backups/
+*.tar.gz
+*.zip
+*.7z
+
+# Logs
+logs/
+*.log
+
+# Database files
+*.db
+*.sqlite
+
+# Nginx generated configs
+nginx/sites/*.conf
+
+# Docker volumes
+docker-compose.override.yml
+
+# Temporary files
+tmp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# Testing files
+test-*.sh
+sandbox/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Credentials and tokens
+rclone.conf
+*.pem
+*.key
+*.crt
+authorized_keys
+
+# Report files (keep template only)
+docs/report.md
+
+# SSH keys
+*.pub
+id_rsa*
+id_ed25519*

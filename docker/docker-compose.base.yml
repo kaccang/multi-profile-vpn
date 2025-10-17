@@ -1,0 +1,63 @@
+# VPN Multi-Profile Manager - Docker Compose Base Template
+# This file is a template and will be modified by profile-manager.sh
+
+version: '3.8'
+
+networks:
+  vpn-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.1.0/24
+
+services:
+  # Profile template - will be duplicated for each profile
+  # Naming convention: profile-{name}
+  # Example:
+  #
+  # profile-client1:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     args:
+  #       XRAY_VERSION: v25.10.15
+  #   container_name: profile-client1
+  #   hostname: client1
+  #   restart: unless-stopped
+  #   privileged: true
+  #   networks:
+  #     vpn-network:
+  #       ipv4_address: 172.20.1.2
+  #   ports:
+  #     - "2201:22"
+  #   volumes:
+  #     - /etc/xray-multi/profiles/client1/xray:/etc/xray:ro
+  #     - /etc/xray-multi/profiles/client1/ssh:/root/.ssh:ro
+  #     - /etc/xray-multi/profile-scripts:/usr/local/bin/vpn-scripts:ro
+  #     - profile-client1-logs:/var/log
+  #     - profile-client1-vnstat:/var/lib/vnstat
+  #   environment:
+  #     - PROFILE_NAME=client1
+  #     - DOMAIN=vpn1.domain.com
+  #     - SSH_PORT=2201
+  #     - ROOT_PASSWORD=generated_password
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.5'
+  #         memory: 2048M
+  #       reservations:
+  #         cpus: '0.5'
+  #         memory: 512M
+  #   cap_add:
+  #     - NET_ADMIN
+  #   sysctls:
+  #     - net.ipv4.ip_forward=1
+  #     - net.ipv6.conf.all.forwarding=1
+
+volumes:
+  # Volume template - will be created for each profile
+  # profile-{name}-logs:
+  #   driver: local
+  # profile-{name}-vnstat:
+  #   driver: local

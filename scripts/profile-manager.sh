@@ -51,7 +51,7 @@ create_profile() {
     
     # Input CPU
     while true; do
-        read -p "$(echo -e ${WHITE}"CPU (%): "${NC})" cpu
+        read -p "$(echo -e "${WHITE}CPU (%): ${NC}")" cpu
         
         if ! validate_number_range "$cpu" 50 800; then
             print_error "CPU must be between 50-800"
@@ -63,7 +63,7 @@ create_profile() {
     
     # Input RAM
     while true; do
-        read -p "$(echo -e ${WHITE}"RAM (MB): "${NC})" ram
+        read -p "$(echo -e "${WHITE}RAM (MB): ${NC}")" ram
         
         if ! validate_number_range "$ram" 256 16384; then
             print_error "RAM must be between 256-16384 MB"
@@ -74,7 +74,7 @@ create_profile() {
     done
     
     # SSH Port
-    read -p "$(echo -e ${WHITE}"SSH Port [auto]: "${NC})" ssh_port
+    read -p "$(echo -e "${WHITE}SSH Port [auto]: ${NC}")" ssh_port
     if [[ -z "$ssh_port" ]]; then
         ssh_port=$(find_available_port $SSH_PORT_START $SSH_PORT_END)
         if [[ -z "$ssh_port" ]]; then
@@ -85,31 +85,31 @@ create_profile() {
     fi
     
     # Password
-    read -p "$(echo -e ${WHITE}"Password [auto]: "${NC})" password
+    read -p "$(echo -e "${WHITE}Password [auto]: ${NC}")" password
     if [[ -z "$password" ]]; then
         password=$(generate_password 10)
         echo "Auto-generated: $password"
     fi
     
     # Expiration
-    read -p "$(echo -e ${WHITE}"Expired (days): "${NC})" expired_days
+    read -p "$(echo -e "${WHITE}Expired (days): ${NC}")" expired_days
     expired_date=$(date -d "+${expired_days} days" +%Y-%m-%d)
     
     # Bandwidth
-    read -p "$(echo -e ${WHITE}"Bandwidth Quota (TB): "${NC})" bw_quota
+    read -p "$(echo -e "${WHITE}Bandwidth Quota (TB): ${NC}")" bw_quota
     
     # Custom Paths
-    read -p "$(echo -e ${WHITE}"VMess Path [/vmess]: "${NC})" path_vmess
+    read -p "$(echo -e "${WHITE}VMess Path [/vmess]: ${NC}")" path_vmess
     path_vmess=${path_vmess:-/vmess}
     
-    read -p "$(echo -e ${WHITE}"VLess Path [/vless]: "${NC})" path_vless
+    read -p "$(echo -e "${WHITE}VLess Path [/vless]: ${NC}")" path_vless
     path_vless=${path_vless:-/vless}
     
-    read -p "$(echo -e ${WHITE}"Trojan Path [/trojan]: "${NC})" path_trojan
+    read -p "$(echo -e "${WHITE}Trojan Path [/trojan]: ${NC}")" path_trojan
     path_trojan=${path_trojan:-/trojan}
     
     # Restore Link
-    read -p "$(echo -e ${WHITE}"Restore Link [empty]: "${NC})" restore_link
+    read -p "$(echo -e "${WHITE}Restore Link [empty]: ${NC}")" restore_link
     
     # Preview
     echo ""
@@ -222,7 +222,7 @@ delete_profile() {
         local domain=$(echo "$info" | jq -r '.domain')
         local status=$(echo "$info" | jq -r '.status')
 
-        printf "${WHITE}%2d)${NC} %-20s ${CYAN}%-30s${NC} [%s]\\n" $i "$profile" "$domain" "$status"
+        printf "${WHITE}%2d)${NC} %-20s ${CYAN}%-30s${NC} [%s]\n" $i "$profile" "$domain" "$status"
         profile_map[$i]="$profile"
         i=$((i + 1))
     done <<< "$profiles"
@@ -295,7 +295,7 @@ delete_profile() {
     add_to_history "Delete Profile" "Deleted profile: $selected_profile"
 
     # Send notification
-    send_telegram "🗑️ *Profile Deleted*\\nVPS: $(cat /etc/hostname)\\nProfile: $selected_profile"
+    send_telegram "🗑️ *Profile Deleted*\nVPS: $(cat /etc/hostname)\nProfile: $selected_profile"
 
     echo ""
     print_success "Profile $selected_profile deleted successfully"
@@ -343,7 +343,7 @@ access_profile() {
             status="${RED}stopped${NC}"
         fi
 
-        printf "${WHITE}%2d)${NC} %-20s ${CYAN}Port: %-6s${NC} Status: %b\\n" $i "$profile" "${ssh_port:-N/A}" "$status"
+        printf "${WHITE}%2d)${NC} %-20s ${CYAN}Port: %-6s${NC} Status: %b\n" $i "$profile" "${ssh_port:-N/A}" "$status"
         profile_map[$i]="$profile"
         i=$((i + 1))
     done <<< "$profiles"
@@ -382,13 +382,13 @@ access_profile() {
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║${NC}                 ${BOLD}SSH CONNECTION INFO${NC}                       ${CYAN}║${NC}"
     echo -e "${CYAN}╠══════════════════════════════════════════════════════════════╣${NC}"
-    printf "${CYAN}║${NC} ${WHITE}Profile     :${NC} %-45s ${CYAN}║${NC}\\n" "$selected_profile"
-    printf "${CYAN}║${NC} ${WHITE}Host        :${NC} %-45s ${CYAN}║${NC}\\n" "localhost"
-    printf "${CYAN}║${NC} ${WHITE}Port        :${NC} %-45s ${CYAN}║${NC}\\n" "$ssh_port"
-    printf "${CYAN}║${NC} ${WHITE}Username    :${NC} %-45s ${CYAN}║${NC}\\n" "root"
-    printf "${CYAN}║${NC} ${WHITE}Password    :${NC} %-45s ${CYAN}║${NC}\\n" "$password"
+    printf "${CYAN}║${NC} ${WHITE}Profile     :${NC} %-45s ${CYAN}║${NC}\n" "$selected_profile"
+    printf "${CYAN}║${NC} ${WHITE}Host        :${NC} %-45s ${CYAN}║${NC}\n" "localhost"
+    printf "${CYAN}║${NC} ${WHITE}Port        :${NC} %-45s ${CYAN}║${NC}\n" "$ssh_port"
+    printf "${CYAN}║${NC} ${WHITE}Username    :${NC} %-45s ${CYAN}║${NC}\n" "root"
+    printf "${CYAN}║${NC} ${WHITE}Password    :${NC} %-45s ${CYAN}║${NC}\n" "$password"
     echo -e "${CYAN}╠══════════════════════════════════════════════════════════════╣${NC}"
-    printf "${CYAN}║${NC} ${YELLOW}Command:${NC} %-50s ${CYAN}║${NC}\\n" "ssh -p $ssh_port root@localhost"
+    printf "${CYAN}║${NC} ${YELLOW}Command:${NC} %-50s ${CYAN}║${NC}\n" "ssh -p $ssh_port root@localhost"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
@@ -451,7 +451,7 @@ extend_expiration() {
             local status="${GREEN}$days_left days${NC}"
         fi
 
-        printf "${WHITE}%2d)${NC} %-20s Exp: %-12s (%b)\\n" $i "$profile" "$expired" "$status"
+        printf "${WHITE}%2d)${NC} %-20s Exp: %-12s (%b)\n" $i "$profile" "$expired" "$status"
         profile_map[$i]="$profile"
         i=$((i + 1))
     done <<< "$profiles"
@@ -499,7 +499,7 @@ extend_expiration() {
     add_to_history "Extend Expiration" "Extended $selected_profile: $current_expired → $new_exp_date (+$add_days days)"
 
     # Send notification
-    send_telegram "📅 *Expiration Extended*\\nVPS: $(cat /etc/hostname)\\nProfile: $selected_profile\\nOld: $current_expired\\nNew: $new_exp_date (+$add_days days)"
+    send_telegram "📅 *Expiration Extended*\nVPS: $(cat /etc/hostname)\nProfile: $selected_profile\nOld: $current_expired\nNew: $new_exp_date (+$add_days days)"
 
     echo ""
     print_success "Expiration extended successfully"
@@ -541,7 +541,7 @@ extend_bandwidth() {
         local quota_gb=$(echo "$info" | jq -r '.bandwidth_quota')
         local used_gb=$(echo "$info" | jq -r '.bandwidth_used // 0 / 1024 / 1024 / 1024')
 
-        printf "${WHITE}%2d)${NC} %-20s Quota: ${GREEN}%5d GB${NC} Used: ${CYAN}%5.2f GB${NC}\\n" $i "$profile" "$quota_gb" "$used_gb"
+        printf "${WHITE}%2d)${NC} %-20s Quota: ${GREEN}%5d GB${NC} Used: ${CYAN}%5.2f GB${NC}\n" $i "$profile" "$quota_gb" "$used_gb"
         profile_map[$i]="$profile"
         i=$((i + 1))
     done <<< "$profiles"
@@ -569,7 +569,7 @@ extend_bandwidth() {
     echo -e "${WHITE}Current quota:${NC} ${current_quota} GB"
     echo ""
 
-    read -p "$(echo -e ${WHITE}Add bandwidth quota (GB): ${NC})" add_gb
+    read -p "$(echo -e "${WHITE}Add bandwidth quota (GB): ${NC}")" add_gb
 
     if [[ -z "$add_gb" ]] || [[ ! "$add_gb" =~ ^[0-9]+$ ]]; then
         print_error "Invalid number"
@@ -588,7 +588,7 @@ extend_bandwidth() {
     add_to_history "Extend Bandwidth" "Extended $selected_profile: ${current_quota}GB → ${new_quota}GB (+${add_gb}GB)"
 
     # Send notification
-    send_telegram "📊 *Bandwidth Quota Extended*\\nVPS: $(cat /etc/hostname)\\nProfile: $selected_profile\\nOld: ${current_quota} GB\\nNew: ${new_quota} GB (+${add_gb} GB)"
+    send_telegram "📊 *Bandwidth Quota Extended*\nVPS: $(cat /etc/hostname)\nProfile: $selected_profile\nOld: ${current_quota} GB\nNew: ${new_quota} GB (+${add_gb} GB)"
 
     echo ""
     print_success "Bandwidth quota extended successfully"

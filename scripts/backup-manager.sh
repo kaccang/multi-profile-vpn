@@ -233,4 +233,27 @@ main() {
 }
 
 # Run main function
-main
+case "${1:-global}" in
+    profile)
+        # Backup single profile
+        if [[ -z "$2" ]]; then
+            echo "Usage: $0 profile <profile_name>"
+            exit 1
+        fi
+        log "Backing up single profile: $2"
+        # TODO: Implement single profile backup
+        echo "Single profile backup not implemented yet"
+        echo "Use global backup for now: $0 global"
+        exit 1
+        ;;
+    global)
+        # Backup all profiles (default)
+        main
+        ;;
+    *)
+        echo "Usage: $0 {profile <name>|global}"
+        echo "  profile <name>  - Backup single profile (not implemented yet)"
+        echo "  global          - Backup all profiles and system config (default)"
+        exit 1
+        ;;
+esac

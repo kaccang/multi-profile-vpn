@@ -135,16 +135,15 @@ show_main_menu() {
     echo -e "${CYAN}│${NC}  ${WHITE}2)${NC}  Create New Profile                                         ${CYAN}│${NC}"
     echo -e "${CYAN}│${NC}  ${WHITE}3)${NC}  Delete Profile                                             ${CYAN}│${NC}"
     echo -e "${CYAN}│${NC}  ${WHITE}4)${NC}  Access Profile (SSH)                                       ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}5)${NC}  Manage Profile Settings                                    ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}6)${NC}  Extend Profile Expiration                                  ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}7)${NC}  Extend Profile Bandwidth                                   ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}8)${NC}  Backup Profile                                             ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}9)${NC}  Restore Profile                                            ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}10)${NC} Global Backup (All Profiles)                              ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}11)${NC} Global Restore                                             ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}12)${NC} System Settings                                            ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}13)${NC} View Logs                                                  ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  ${WHITE}14)${NC} Health Check Status                                        ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}5)${NC}  Extend Profile Expiration                                  ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}6)${NC}  Extend Profile Bandwidth                                   ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}7)${NC}  Backup Profile                                             ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}8)${NC}  Restore Profile                                            ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}9)${NC}  Global Backup (All Profiles)                               ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}10)${NC} Global Restore                                             ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}11)${NC} System Settings                                            ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}12)${NC} View Logs                                                  ${CYAN}│${NC}"
+    echo -e "${CYAN}│${NC}  ${WHITE}13)${NC} Health Check Status                                        ${CYAN}│${NC}"
     echo -e "${CYAN}│${NC}  ${WHITE}0)${NC}  Exit                                                       ${CYAN}│${NC}"
     echo -e "${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
     echo ""
@@ -220,10 +219,6 @@ action_access_profile() {
     "${BASE_DIR}/scripts/profile-manager.sh" access
 }
 
-action_manage_profile() {
-    "${BASE_DIR}/scripts/profile-manager.sh" manage
-}
-
 action_extend_expiration() {
     "${BASE_DIR}/scripts/profile-manager.sh" extend-expiration
 }
@@ -233,11 +228,12 @@ action_extend_bandwidth() {
 }
 
 action_backup_profile() {
-    "${BASE_DIR}/scripts/backup-manager.sh" profile
+    # Backup all profiles for now (single profile backup not implemented yet)
+    "${BASE_DIR}/scripts/backup-manager.sh" global
 }
 
 action_restore_profile() {
-    "${BASE_DIR}/scripts/backup-manager.sh" restore
+    "${BASE_DIR}/scripts/restore-manager.sh"
 }
 
 action_global_backup() {
@@ -245,7 +241,7 @@ action_global_backup() {
 }
 
 action_global_restore() {
-    "${BASE_DIR}/scripts/backup-manager.sh" global-restore
+    "${BASE_DIR}/scripts/restore-manager.sh"
 }
 
 action_system_settings() {
@@ -401,23 +397,22 @@ main_loop() {
         show_dashboard
         show_main_menu
 
-        read -p "$(echo -e ${WHITE}Select option [0-14]: ${NC})" choice
+        read -p "$(echo -e ${WHITE}Select option [0-13]: ${NC})" choice
 
         case $choice in
             1) action_list_profiles ;;
             2) action_create_profile ;;
             3) action_delete_profile ;;
             4) action_access_profile ;;
-            5) action_manage_profile ;;
-            6) action_extend_expiration ;;
-            7) action_extend_bandwidth ;;
-            8) action_backup_profile ;;
-            9) action_restore_profile ;;
-            10) action_global_backup ;;
-            11) action_global_restore ;;
-            12) action_system_settings ;;
-            13) action_view_logs ;;
-            14) action_health_status ;;
+            5) action_extend_expiration ;;
+            6) action_extend_bandwidth ;;
+            7) action_backup_profile ;;
+            8) action_restore_profile ;;
+            9) action_global_backup ;;
+            10) action_global_restore ;;
+            11) action_system_settings ;;
+            12) action_view_logs ;;
+            13) action_health_status ;;
             0)
                 clear
                 print_success "Goodbye!"

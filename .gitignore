@@ -2,6 +2,9 @@
 # VPN Multi-Profile Manager - .gitignore
 # ============================================
 
+# Private/Personal files
+CLAUDE.md
+
 # Environment files with credentials
 .env
 .env.local
@@ -39,6 +42,10 @@ tmp/
 *.bak
 *.swp
 *~
+*.old
+*.backup
+config.old/
+menu.old/
 
 # Testing files
 test-*.sh

@@ -1,7 +1,7 @@
 # VPN Multi-Profile Manager - Profile Container
 # Ubuntu-based container with Xray, SSH, and vnstat
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -11,6 +11,7 @@ ENV TZ=Asia/Jakarta
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
+    unzip \
     supervisor \
     openssh-server \
     vnstat \
@@ -42,8 +43,8 @@ RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "AllowUsers root" >> /etc/ssh/sshd_config
 
-# Initialize vnstat database
-RUN vnstat --create -i eth0
+# Initialize vnstat database (will be created automatically by vnstatd on first run)
+RUN mkdir -p /var/lib/vnstat
 
 # Copy supervisor configuration
 COPY supervisor.conf /etc/supervisor/conf.d/supervisord.conf

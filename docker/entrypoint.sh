@@ -65,7 +65,7 @@ fi
 if [ ! -d /var/lib/vnstat ]; then
     echo "Initializing vnstat..."
     mkdir -p /var/lib/vnstat
-    vnstat --create -i eth0 || true
+    # vnstatd will auto-create database on first run
 fi
 
 # Create log directories

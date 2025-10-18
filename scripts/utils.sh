@@ -34,8 +34,8 @@ validate_domain() {
         return 1
     fi
 
-    # Basic domain regex
-    if [[ ! $domain =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$ ]]; then
+    # Domain regex supporting subdomains (e.g., vpn.example.com, sub.vpn.example.com)
+    if [[ ! $domain =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$ ]]; then
         return 1
     fi
 

@@ -202,22 +202,22 @@ create_nginx_config() {
     local trojan_path=$(grep "PATH_TROJAN=" "${BASE_DIR}/profiles/${profile}/xray/paths.env" | cut -d= -f2)
 
     # Generate config from template
-    cat > "${BASE_DIR}/nginx/sites/${domain}.conf" << EOF
+    cat > "${BASE_DIR}/nginx/sites/${domain}.conf" << 'EOFNGINX'
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name $domain;
+    server_name DOMAIN_PLACEHOLDER;
 
     # SSL Configuration
-    ssl_certificate ${CERT_DIR}/${domain}/fullchain.pem;
-    ssl_certificate_key ${CERT_DIR}/${domain}/privkey.pem;
-    ssl_trusted_certificate ${CERT_DIR}/${domain}/chain.pem;
+    ssl_certificate CERT_DIR_PLACEHOLDER/DOMAIN_PLACEHOLDER/fullchain.pem;
+    ssl_certificate_key CERT_DIR_PLACEHOLDER/DOMAIN_PLACEHOLDER/privkey.pem;
+    ssl_trusted_certificate CERT_DIR_PLACEHOLDER/DOMAIN_PLACEHOLDER/chain.pem;
 
-    include ${BASE_DIR}/nginx/ssl-params.conf;
+    include BASE_DIR_PLACEHOLDER/nginx/ssl-params.conf;
 
     # Access & Error Logs
-    access_log /var/log/nginx/${domain}-access.log main;
-    error_log /var/log/nginx/${domain}-error.log warn;
+    access_log /var/log/nginx/DOMAIN_PLACEHOLDER-access.log main;
+    error_log /var/log/nginx/DOMAIN_PLACEHOLDER-error.log warn;
 
     # Default location
     location / {
@@ -225,12 +225,12 @@ server {
     }
 
     # VMess WebSocket
-    location $vmess_path {
+    location VMESS_PATH_PLACEHOLDER {
         if (\$http_upgrade != "websocket") {
             return 404;
         }
 
-        proxy_pass http://${container_ip}:10001;
+        proxy_pass http://CONTAINER_IP_PLACEHOLDER:10001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \$connection_upgrade;
@@ -249,12 +249,12 @@ server {
     }
 
     # VLess WebSocket
-    location $vless_path {
+    location VLESS_PATH_PLACEHOLDER {
         if (\$http_upgrade != "websocket") {
             return 404;
         }
 
-        proxy_pass http://${container_ip}:10002;
+        proxy_pass http://CONTAINER_IP_PLACEHOLDER:10002;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \$connection_upgrade;
@@ -273,12 +273,12 @@ server {
     }
 
     # Trojan WebSocket
-    location $trojan_path {
+    location TROJAN_PATH_PLACEHOLDER {
         if (\$http_upgrade != "websocket") {
             return 404;
         }
 
-        proxy_pass http://${container_ip}:10003;
+        proxy_pass http://CONTAINER_IP_PLACEHOLDER:10003;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \$connection_upgrade;
@@ -296,7 +296,16 @@ server {
         limit_req zone=ws burst=20 nodelay;
     }
 }
-EOF
+EOFNGINX
+
+    # Replace placeholders
+    sed -i "s|DOMAIN_PLACEHOLDER|$domain|g" "${BASE_DIR}/nginx/sites/${domain}.conf"
+    sed -i "s|CERT_DIR_PLACEHOLDER|$CERT_DIR|g" "${BASE_DIR}/nginx/sites/${domain}.conf"
+    sed -i "s|BASE_DIR_PLACEHOLDER|$BASE_DIR|g" "${BASE_DIR}/nginx/sites/${domain}.conf"
+    sed -i "s|CONTAINER_IP_PLACEHOLDER|$container_ip|g" "${BASE_DIR}/nginx/sites/${domain}.conf"
+    sed -i "s|VMESS_PATH_PLACEHOLDER|$vmess_path|g" "${BASE_DIR}/nginx/sites/${domain}.conf"
+    sed -i "s|VLESS_PATH_PLACEHOLDER|$vless_path|g" "${BASE_DIR}/nginx/sites/${domain}.conf"
+    sed -i "s|TROJAN_PATH_PLACEHOLDER|$trojan_path|g" "${BASE_DIR}/nginx/sites/${domain}.conf"
 
     log "INFO" "Nginx configuration created for $domain"
 }

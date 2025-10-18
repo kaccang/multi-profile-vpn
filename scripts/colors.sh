@@ -122,7 +122,7 @@ print_banner() {
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║${NC}                                                              ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}         ${GREEN}VPN MULTI-PROFILE MANAGER${NC}                         ${CYAN}║${NC}"
-    echo -e "${CYAN}║${NC}         ${BLUE}github.com/kaccang/xray-multiprofile${NC}          ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}         ${BLUE}github.com/kaccang/xray-multiprofile${NC}         ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}                                                              ${CYAN}║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""

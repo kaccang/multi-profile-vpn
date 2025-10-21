@@ -1,0 +1,416 @@
+#!/bin/bash
+# Container VPN Account Management - CLI Semi-GUI
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+CONFIG_FILE="/etc/xray/config.json"
+SCRIPT_DIR="/root"
+
+# Get profile info
+get_profile_name() {
+    hostname 2>/dev/null || echo "unknown"
+}
+
+# Get account count
+get_account_count() {
+    if [ -f "$CONFIG_FILE" ]; then
+        jq '.inbounds[0].settings.clients | length' "$CONFIG_FILE" 2>/dev/null || echo "0"
+    else
+        echo "0"
+    fi
+}
+
+# Get service status
+get_xray_status() {
+    if supervisorctl status xray 2>/dev/null | grep -q RUNNING; then
+        echo -e "${GREEN}RUNNING${NC}"
+    else
+        echo -e "${RED}STOPPED${NC}"
+    fi
+}
+
+get_ssh_status() {
+    if service ssh status 2>/dev/null | grep -q running; then
+        echo -e "${GREEN}RUNNING${NC}"
+    else
+        echo -e "${RED}STOPPED${NC}"
+    fi
+}
+
+# Display header
+show_header() {
+    clear
+    local profile_name=$(get_profile_name)
+    local count=$(get_account_count)
+    local xray_status=$(get_xray_status)
+    local ssh_status=$(get_ssh_status)
+    
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║                                                          ║${NC}"
+    echo -e "${CYAN}║           ${WHITE}VPN ACCOUNT MANAGEMENT${CYAN}                      ║${NC}"
+    echo -e "${CYAN}║                                                          ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${BLUE}╔══════════════════ ${WHITE}PROFILE INFO${BLUE} ═════════════════════╗${NC}"
+    echo -e "${BLUE}║${NC}  Profile : ${YELLOW}$profile_name${NC}"
+    echo -e "${BLUE}║${NC}  Accounts: ${YELLOW}$count${NC}"
+    echo -e "${BLUE}║${NC}  Xray    : $xray_status"
+    echo -e "${BLUE}║${NC}  SSH     : $ssh_status"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+}
+
+# Main menu
+show_menu() {
+    show_header
+    echo -e "${CYAN}╔══════════════════ ${WHITE}MENU${CYAN} ══════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC}                                                          ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${GREEN}1)${NC} Add Account          ${BLUE}# Create new VPN account${NC}   ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${GREEN}2)${NC} List Accounts        ${BLUE}# View all accounts${NC}        ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${GREEN}3)${NC} Delete Account       ${BLUE}# Remove account${NC}           ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${GREEN}4)${NC} Renew Account        ${BLUE}# Extend expiry date${NC}       ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${GREEN}5)${NC} Show QR Code         ${BLUE}# Display QR for scan${NC}     ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}                                                          ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${YELLOW}6)${NC} Restart Xray         ${BLUE}# Restart VPN service${NC}     ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${YELLOW}7)${NC} View Logs            ${BLUE}# Check Xray logs${NC}         ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}                                                          ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  ${RED}0)${NC} Exit / Logout                                      ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}                                                          ${CYAN}║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -ne "${WHITE}Select option [0-7]: ${NC}"
+}
+
+# Add account
+add_account() {
+    show_header
+    echo -e "${GREEN}╔══════════════════ ${WHITE}ADD ACCOUNT${GREEN} ═══════════════════════╗${NC}"
+    echo ""
+    
+    echo -ne "${WHITE}Username: ${NC}"
+    read username
+    
+    if [ -z "$username" ]; then
+        echo -e "${RED}Username required!${NC}"
+        sleep 2
+        return
+    fi
+    
+    echo ""
+    echo -e "${WHITE}Select Protocol:${NC}"
+    echo -e "  ${GREEN}1)${NC} VMess"
+    echo -e "  ${GREEN}2)${NC} VLess"
+    echo -e "  ${GREEN}3)${NC} Trojan"
+    echo ""
+    echo -ne "${WHITE}Choice [1-3]: ${NC}"
+    read proto_choice
+    
+    case $proto_choice in
+        1) protocol="vmess" ;;
+        2) protocol="vless" ;;
+        3) protocol="trojan" ;;
+        *) protocol="vmess" ;;
+    esac
+    
+    echo -ne "${WHITE}Expiry days [30]: ${NC}"
+    read days
+    days=${days:-30}
+    
+    echo ""
+    echo -e "${YELLOW}Creating account...${NC}"
+    
+    # Call actual script
+    if [ -f "$SCRIPT_DIR/add-${protocol}.sh" ]; then
+        bash "$SCRIPT_DIR/add-${protocol}.sh" "$username" "$days"
+    else
+        echo -e "${RED}Script not found: add-${protocol}.sh${NC}"
+    fi
+    
+    echo ""
+    echo -ne "${WHITE}Press Enter to continue...${NC}"
+    read
+}
+
+# List accounts
+list_accounts() {
+    show_header
+    echo -e "${CYAN}╔══════════════════ ${WHITE}ACCOUNT LIST${CYAN} ════════════════════╗${NC}"
+    echo ""
+    
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "${RED}Config file not found!${NC}"
+        echo ""
+        echo -ne "${WHITE}Press Enter to continue...${NC}"
+        read
+        return
+    fi
+    
+    local accounts=$(jq -r '.inbounds[0].settings.clients[] | "\(.email)|\(.id)"' "$CONFIG_FILE" 2>/dev/null)
+    
+    if [ -z "$accounts" ]; then
+        echo -e "${YELLOW}  No accounts found${NC}"
+    else
+        local server_ip=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "unknown")
+        local xray_port=$(jq -r '.inbounds[0].port' "$CONFIG_FILE" 2>/dev/null || echo "443")
+        
+        echo -e "${BLUE}┌────────────────────────────────────────────────────────────┐${NC}"
+        printf "${WHITE}%-3s %-20s %-30s${NC}\n" "#" "USERNAME" "UUID"
+        echo -e "${BLUE}├────────────────────────────────────────────────────────────┤${NC}"
+        
+        local count=0
+        echo "$accounts" | while IFS='|' read -r email uuid; do
+            count=$((count + 1))
+            printf "${WHITE}%-3s %-20s${NC} ${GREEN}%-30s${NC}\n" "$count" "$email" "$uuid"
+        done
+        
+        echo -e "${BLUE}└────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        echo -e "${CYAN}Server: ${WHITE}$server_ip:$xray_port${NC}"
+    fi
+    
+    # Call list-users.sh if available for full details
+    if [ -f "$SCRIPT_DIR/list-users.sh" ]; then
+        echo ""
+        echo -e "${YELLOW}Detailed information:${NC}"
+        bash "$SCRIPT_DIR/list-users.sh"
+    fi
+    
+    echo ""
+    echo -ne "${WHITE}Press Enter to continue...${NC}"
+    read
+}
+
+# Delete account
+delete_account() {
+    show_header
+    echo -e "${RED}╔══════════════════ ${WHITE}DELETE ACCOUNT${RED} ═══════════════════╗${NC}"
+    echo ""
+    
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "${RED}Config file not found!${NC}"
+        echo ""
+        echo -ne "${WHITE}Press Enter to continue...${NC}"
+        read
+        return
+    fi
+    
+    # Show accounts first
+    echo -e "${WHITE}Current accounts:${NC}"
+    local usernames=$(jq -r '.inbounds[0].settings.clients[].email' "$CONFIG_FILE" 2>/dev/null)
+    
+    if [ -z "$usernames" ]; then
+        echo -e "${YELLOW}  No accounts to delete${NC}"
+        echo ""
+        echo -ne "${WHITE}Press Enter to continue...${NC}"
+        read
+        return
+    fi
+    
+    echo "$usernames" | nl -w2 -s') '
+    echo ""
+    
+    echo -ne "${WHITE}Username to delete: ${NC}"
+    read username
+    
+    if [ -n "$username" ]; then
+        echo ""
+        echo -ne "${YELLOW}Are you sure? [y/N]: ${NC}"
+        read confirm
+        
+        if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+            if [ -f "$SCRIPT_DIR/del-vpn.sh" ]; then
+                bash "$SCRIPT_DIR/del-vpn.sh" "$username"
+            else
+                echo -e "${RED}Delete script not found!${NC}"
+            fi
+        else
+            echo -e "${CYAN}Cancelled${NC}"
+        fi
+    fi
+    
+    echo ""
+    echo -ne "${WHITE}Press Enter to continue...${NC}"
+    read
+}
+
+# Renew account
+renew_account() {
+    show_header
+    echo -e "${YELLOW}╔══════════════════ ${WHITE}RENEW ACCOUNT${YELLOW} ═══════════════════╗${NC}"
+    echo ""
+    
+    echo -ne "${WHITE}Username: ${NC}"
+    read username
+    
+    if [ -z "$username" ]; then
+        echo -e "${RED}Username required!${NC}"
+        sleep 2
+        return
+    fi
+    
+    echo -ne "${WHITE}Add days [30]: ${NC}"
+    read days
+    days=${days:-30}
+    
+    if [ -f "$SCRIPT_DIR/renew-vpn.sh" ]; then
+        bash "$SCRIPT_DIR/renew-vpn.sh" "$username" "$days"
+    else
+        echo -e "${RED}Renew script not found!${NC}"
+    fi
+    
+    echo ""
+    echo -ne "${WHITE}Press Enter to continue...${NC}"
+    read
+}
+
+# Show QR code
+show_qr() {
+    show_header
+    echo -e "${CYAN}╔══════════════════ ${WHITE}QR CODE${CYAN} ═════════════════════════╗${NC}"
+    echo ""
+    
+    echo -ne "${WHITE}Username: ${NC}"
+    read username
+    
+    if [ -z "$username" ]; then
+        echo -e "${RED}Username required!${NC}"
+        sleep 2
+        return
+    fi
+    
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "${RED}Config file not found!${NC}"
+        echo ""
+        echo -ne "${WHITE}Press Enter to continue...${NC}"
+        read
+        return
+    fi
+    
+    # Get account details
+    local uuid=$(jq -r ".inbounds[0].settings.clients[] | select(.email==\"$username\") | .id" "$CONFIG_FILE" 2>/dev/null)
+    
+    if [ -z "$uuid" ]; then
+        echo -e "${RED}Account not found!${NC}"
+    else
+        local server_ip=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "unknown")
+        local port=$(jq -r '.inbounds[0].port' "$CONFIG_FILE" 2>/dev/null || echo "443")
+        
+        # Generate VMess link (simplified)
+        local vmess_json=$(cat <<EOF
+{
+  "v": "2",
+  "ps": "$username",
+  "add": "$server_ip",
+  "port": "$port",
+  "id": "$uuid",
+  "aid": "0",
+  "net": "ws",
+  "type": "none",
+  "host": "",
+  "path": "/",
+  "tls": "tls"
+}
+EOF
+)
+        
+        local vmess_link="vmess://$(echo -n "$vmess_json" | base64 -w 0)"
+        
+        echo ""
+        echo -e "${GREEN}QR Code for: $username${NC}"
+        echo ""
+        
+        if command -v qrencode >/dev/null 2>&1; then
+            qrencode -t ANSIUTF8 "$vmess_link"
+            echo ""
+        else
+            echo -e "${YELLOW}qrencode not installed${NC}"
+            echo ""
+        fi
+        
+        echo -e "${CYAN}Link:${NC}"
+        echo "$vmess_link"
+        echo ""
+        echo -e "${YELLOW}Scan with v2rayNG/V2RayN/Clash${NC}"
+    fi
+    
+    echo ""
+    echo -ne "${WHITE}Press Enter to continue...${NC}"
+    read
+}
+
+# Restart Xray
+restart_xray() {
+    show_header
+    echo -e "${YELLOW}╔══════════════════ ${WHITE}RESTART XRAY${YELLOW} ════════════════════╗${NC}"
+    echo ""
+    
+    echo -e "${YELLOW}Restarting Xray service...${NC}"
+    
+    if command -v supervisorctl >/dev/null 2>&1; then
+        supervisorctl restart xray
+        echo -e "${GREEN}✓ Xray restarted${NC}"
+    else
+        echo -e "${RED}Supervisor not found!${NC}"
+    fi
+    
+    echo ""
+    echo -ne "${WHITE}Press Enter to continue...${NC}"
+    read
+}
+
+# View logs
+view_logs() {
+    show_header
+    echo -e "${CYAN}╔══════════════════ ${WHITE}XRAY LOGS${CYAN} ═══════════════════════╗${NC}"
+    echo ""
+    
+    if [ -f /var/log/xray/access.log ]; then
+        echo -e "${WHITE}Last 50 lines of access log:${NC}"
+        echo ""
+        tail -50 /var/log/xray/access.log
+    else
+        echo -e "${YELLOW}No access log found${NC}"
+    fi
+    
+    echo ""
+    echo -ne "${WHITE}Press Enter to continue...${NC}"
+    read
+}
+
+# Main loop
+main() {
+    while true; do
+        show_menu
+        read choice
+        
+        case $choice in
+            1) add_account ;;
+            2) list_accounts ;;
+            3) delete_account ;;
+            4) renew_account ;;
+            5) show_qr ;;
+            6) restart_xray ;;
+            7) view_logs ;;
+            0) 
+                clear
+                echo -e "${GREEN}Goodbye!${NC}"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Invalid option!${NC}"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# Run
+main

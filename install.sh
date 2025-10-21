@@ -15,7 +15,7 @@ NC='\033[0m'
 
 # Config
 INSTALL_DIR="/opt/multi-profile-vpn"
-GITHUB_REPO="https://github.com/kaccang/multi-profile-vpn.git"
+GITHUB_REPO="https://github.com/kaccang/xray-multiprofile.git"
 
 clear
 

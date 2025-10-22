@@ -1,0 +1,13 @@
+#!/bin/bash
+# Profile Restore - Wrapper for restore-manager.sh
+
+# Load config
+if [ -f /etc/vpn-system.conf ]; then
+    source /etc/vpn-system.conf
+fi
+
+VPN_HOME="${VPN_HOME:-/opt/multi-profile-vpn}"
+
+# Call restore-manager.sh
+cd "$VPN_HOME/scripts"
+exec ./restore-manager.sh "$@"

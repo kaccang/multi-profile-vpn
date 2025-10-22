@@ -1,0 +1,13 @@
+#!/bin/bash
+# Backup Daemon - Wrapper for backup-manager.sh
+
+# Load config
+if [ -f /etc/vpn-system.conf ]; then
+    source /etc/vpn-system.conf
+fi
+
+VPN_HOME="${VPN_HOME:-/opt/multi-profile-vpn}"
+
+# Call backup-manager.sh
+cd "$VPN_HOME/scripts"
+exec ./backup-manager.sh "$@"

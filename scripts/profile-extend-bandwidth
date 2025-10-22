@@ -1,0 +1,40 @@
+#!/bin/bash
+# Profile Extend Bandwidth - Add bandwidth quota
+
+# Load config
+if [ -f /etc/vpn-system.conf ]; then
+    source /etc/vpn-system.conf
+fi
+
+VPN_HOME="${VPN_HOME:-/opt/multi-profile-vpn}"
+DB_PATH="${DB_PATH:-$VPN_HOME/data/app.db}"
+
+profile_name="$1"
+add_tb="$2"
+
+if [ -z "$profile_name" ] || [ -z "$add_tb" ]; then
+    echo "Usage: $0 <profile_name> <tb>"
+    exit 1
+fi
+
+# Convert TB to GB
+add_gb=$(echo "$add_tb * 1024" | bc)
+
+# Get current quota
+current_quota=$(sqlite3 "$DB_PATH" "SELECT bandwidth_quota_gb FROM profiles WHERE name='$profile_name';" 2>/dev/null)
+
+if [ -z "$current_quota" ]; then
+    echo "Error: Profile not found"
+    exit 1
+fi
+
+# Calculate new quota
+new_quota=$(echo "$current_quota + $add_gb" | bc)
+
+# Update database
+sqlite3 "$DB_PATH" "UPDATE profiles SET bandwidth_quota_gb=$new_quota, updated_at=CURRENT_TIMESTAMP WHERE name='$profile_name';"
+
+new_quota_tb=$(echo "scale=2; $new_quota / 1024" | bc)
+
+echo "✓ Profile '$profile_name' bandwidth extended by $add_tb TB"
+echo "New bandwidth quota: $new_quota_tb TB"

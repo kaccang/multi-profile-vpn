@@ -1,0 +1,13 @@
+#!/bin/bash
+# Profile Delete - Wrapper for profile-manager.sh
+
+# Load config
+if [ -f /etc/vpn-system.conf ]; then
+    source /etc/vpn-system.conf
+fi
+
+VPN_HOME="${VPN_HOME:-/opt/multi-profile-vpn}"
+
+# Call profile-manager.sh delete
+cd "$VPN_HOME/scripts"
+exec ./profile-manager.sh delete "$@"

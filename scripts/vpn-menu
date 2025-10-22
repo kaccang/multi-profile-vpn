@@ -157,8 +157,7 @@ create_profile() {
     echo ""
     
     # Just call the actual script
-    cd "$VPN_HOME/scripts"
-    ./profile-create
+    "$VPN_HOME/scripts/profile-create"
     
     echo ""
     echo -ne "${WHITE}Press Enter to continue...${NC}"
@@ -190,8 +189,7 @@ delete_profile() {
     read profile_name
     
     if [ -n "$profile_name" ]; then
-        cd "$VPN_HOME/scripts"
-        ./profile-delete "$profile_name"
+        "$VPN_HOME/scripts/profile-delete" "$profile_name"
     fi
     
     echo ""
@@ -212,8 +210,7 @@ extend_days() {
     read days
     
     if [ -n "$profile_name" ] && [ -n "$days" ]; then
-        cd "$VPN_HOME/scripts"
-        ./profile-extend-expiry "$profile_name" "$days"
+        "$VPN_HOME/scripts/profile-extend-expiry" "$profile_name" "$days"
     fi
     
     echo ""
@@ -234,8 +231,7 @@ extend_bandwidth() {
     read tb
     
     if [ -n "$profile_name" ] && [ -n "$tb" ]; then
-        cd "$VPN_HOME/scripts"
-        ./profile-extend-bandwidth "$profile_name" "$tb"
+        "$VPN_HOME/scripts/profile-extend-bandwidth" "$profile_name" "$tb"
     fi
     
     echo ""
@@ -297,12 +293,12 @@ security_menu() {
     read choice
     
     case $choice in
-        1) cd "$VPN_HOME/scripts" && ./firewall-setup install ;;
-        2) cd "$VPN_HOME/scripts" && ./fail2ban-setup install ;;
-        3) cd "$VPN_HOME/scripts" && ./ssh-hardening install ;;
-        4) cd "$VPN_HOME/scripts" && ./nginx-hardening install ;;
-        5) cd "$VPN_HOME/scripts" && ./system-hardening ;;
-        6) cd "$VPN_HOME/scripts" && ./security-audit ;;
+        1) "$VPN_HOME/scripts/firewall-setup" install ;;
+        2) "$VPN_HOME/scripts/fail2ban-setup" install ;;
+        3) "$VPN_HOME/scripts/ssh-hardening" install ;;
+        4) "$VPN_HOME/scripts/nginx-hardening" install ;;
+        5) "$VPN_HOME/scripts/system-hardening" ;;
+        6) "$VPN_HOME/scripts/security-audit" ;;
         0) return ;;
     esac
     
@@ -314,8 +310,7 @@ security_menu() {
 # Monitoring
 monitoring_menu() {
     show_header
-    cd "$VPN_HOME/scripts"
-    ./monitoring-dashboard
+    "$VPN_HOME/scripts/monitoring-dashboard"
     
     echo ""
     echo -ne "${WHITE}Press Enter to continue...${NC}"
@@ -336,11 +331,11 @@ backup_menu() {
     read choice
     
     case $choice in
-        1) cd "$VPN_HOME/scripts" && ./backup-daemon backup ;;
+        1) "$VPN_HOME/scripts/backup-daemon" backup ;;
         2) 
             echo -ne "${WHITE}Backup file path: ${NC}"
             read backup_file
-            cd "$VPN_HOME/scripts" && ./profile-restore "$backup_file"
+            "$VPN_HOME/scripts/profile-restore" "$backup_file"
             ;;
         3) ls -lh "$VPN_HOME/backups/" 2>/dev/null || echo "No backups found" ;;
         0) return ;;

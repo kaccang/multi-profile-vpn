@@ -1,0 +1,35 @@
+#!/bin/bash
+# Profile Extend Expiry - Add days to profile
+
+# Load config
+if [ -f /etc/vpn-system.conf ]; then
+    source /etc/vpn-system.conf
+fi
+
+VPN_HOME="${VPN_HOME:-/opt/multi-profile-vpn}"
+DB_PATH="${DB_PATH:-$VPN_HOME/data/app.db}"
+
+profile_name="$1"
+add_days="$2"
+
+if [ -z "$profile_name" ] || [ -z "$add_days" ]; then
+    echo "Usage: $0 <profile_name> <days>"
+    exit 1
+fi
+
+# Get current expiry
+current_expiry=$(sqlite3 "$DB_PATH" "SELECT expiry_date FROM profiles WHERE name='$profile_name';" 2>/dev/null)
+
+if [ -z "$current_expiry" ]; then
+    echo "Error: Profile not found"
+    exit 1
+fi
+
+# Calculate new expiry
+new_expiry=$(date -d "$current_expiry +$add_days days" '+%Y-%m-%d')
+
+# Update database
+sqlite3 "$DB_PATH" "UPDATE profiles SET expiry_date='$new_expiry', updated_at=CURRENT_TIMESTAMP WHERE name='$profile_name';"
+
+echo "✓ Profile '$profile_name' extended by $add_days days"
+echo "New expiry date: $new_expiry"

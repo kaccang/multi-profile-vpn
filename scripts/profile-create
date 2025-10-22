@@ -1,0 +1,180 @@
+#!/bin/bash
+# Profile Create - Interactive wrapper for profile-manager.sh
+
+# Load config
+if [ -f /etc/vpn-system.conf ]; then
+    source /etc/vpn-system.conf
+fi
+
+VPN_HOME="${VPN_HOME:-/opt/multi-profile-vpn}"
+DB_PATH="${DB_PATH:-$VPN_HOME/data/app.db}"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Get next available port
+get_next_port() {
+    local last_port=$(sqlite3 "$DB_PATH" "SELECT MAX(ssh_port) FROM profiles;" 2>/dev/null)
+    if [ -z "$last_port" ] || [ "$last_port" = "" ]; then
+        echo "2200"
+    else
+        echo $((last_port + 1))
+    fi
+}
+
+# Check if port is in valid range
+is_valid_port() {
+    local port=$1
+    if [ $port -ge 2200 ] && [ $port -le 2333 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Check if port is already used
+is_port_used() {
+    local port=$1
+    local count=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles WHERE ssh_port=$port;" 2>/dev/null)
+    [ "$count" -gt 0 ]
+}
+
+echo -e "${CYAN}╔══════════════════ CREATE PROFILE ═══════════════════════╗${NC}"
+echo ""
+
+# Profile Name
+while true; do
+    echo -ne "${WHITE}Profile name: ${NC}"
+    read profile_name
+    
+    if [ -z "$profile_name" ]; then
+        echo -e "${RED}Profile name required!${NC}"
+        continue
+    fi
+    
+    # Check if profile exists
+    existing=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles WHERE name='$profile_name';" 2>/dev/null)
+    if [ "$existing" -gt 0 ]; then
+        echo -e "${RED}Profile '$profile_name' already exists!${NC}"
+        continue
+    fi
+    
+    break
+done
+
+# Domain (optional)
+echo -ne "${WHITE}Domain (optional, press Enter to skip): ${NC}"
+read domain
+
+# SSH Port
+while true; do
+    default_port=$(get_next_port)
+    echo -ne "${WHITE}SSH Port [${default_port}] (2200-2333, Enter for auto): ${NC}"
+    read ssh_port
+    
+    # Use default if empty
+    if [ -z "$ssh_port" ]; then
+        ssh_port=$default_port
+    fi
+    
+    # Validate port range
+    if ! is_valid_port $ssh_port; then
+        echo -e "${RED}Port must be between 2200-2333!${NC}"
+        continue
+    fi
+    
+    # Check if port already used
+    if is_port_used $ssh_port; then
+        echo -e "${RED}Port $ssh_port already in use!${NC}"
+        continue
+    fi
+    
+    break
+done
+
+# Xray Port
+echo -ne "${WHITE}Xray Port [443]: ${NC}"
+read xray_port
+xray_port=${xray_port:-443}
+
+# CPU Limit (percentage)
+while true; do
+    echo -ne "${WHITE}CPU Limit (%) [10]: ${NC}"
+    read cpu_percent
+    cpu_percent=${cpu_percent:-10}
+    
+    # Validate number
+    if ! [[ "$cpu_percent" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}CPU must be a number!${NC}"
+        continue
+    fi
+    
+    # Validate range
+    if [ $cpu_percent -lt 1 ] || [ $cpu_percent -gt 100 ]; then
+        echo -e "${RED}CPU must be between 1-100%!${NC}"
+        continue
+    fi
+    
+    break
+done
+
+# RAM Limit (MB)
+echo -ne "${WHITE}RAM Limit (MB) [512]: ${NC}"
+read ram_mb
+ram_mb=${ram_mb:-512}
+
+# Bandwidth Quota (TB)
+echo -ne "${WHITE}Bandwidth Quota (TB) [1.0]: ${NC}"
+read quota_tb
+quota_tb=${quota_tb:-1.0}
+
+# Expiry Days
+while true; do
+    echo -ne "${WHITE}Expired Days [30]: ${NC}"
+    read expiry_days
+    expiry_days=${expiry_days:-30}
+    
+    # Validate number
+    if ! [[ "$expiry_days" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}Days must be a number!${NC}"
+        continue
+    fi
+    
+    break
+done
+
+# Calculate expiry date
+expiry_date=$(date -d "+$expiry_days days" '+%Y-%m-%d')
+
+echo ""
+echo -e "${CYAN}Creating profile with:${NC}"
+echo -e "  Name: ${WHITE}$profile_name${NC}"
+echo -e "  Domain: ${WHITE}${domain:-None}${NC}"
+echo -e "  SSH Port: ${WHITE}$ssh_port${NC}"
+echo -e "  Xray Port: ${WHITE}$xray_port${NC}"
+echo -e "  CPU Limit: ${WHITE}$cpu_percent%${NC}"
+echo -e "  RAM Limit: ${WHITE}$ram_mb MB${NC}"
+echo -e "  Bandwidth: ${WHITE}$quota_tb TB${NC}"
+echo -e "  Expires: ${WHITE}$expiry_date${NC} (${expiry_days} days)"
+echo ""
+
+# Call profile-manager.sh
+cd "$VPN_HOME/scripts"
+./profile-manager.sh create "$profile_name" "$ssh_port" "$xray_port" "$cpu_percent" "$ram_mb" "$quota_tb" "$expiry_date" "$domain"
+
+exit_code=$?
+
+if [ $exit_code -eq 0 ]; then
+    echo ""
+    echo -e "${GREEN}✓ Profile created successfully!${NC}"
+    echo ""
+    echo -e "${CYAN}SSH Access:${NC} ssh -p $ssh_port root@\$(hostname -I | awk '{print \$1}')"
+    echo -e "${CYAN}Xray Port:${NC} $xray_port"
+else
+    echo ""
+    echo -e "${RED}✗ Failed to create profile${NC}"
+fi

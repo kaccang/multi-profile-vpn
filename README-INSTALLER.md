@@ -3,7 +3,7 @@
 ## Installation (Full Otomatis!)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kaccang/xray-multiprofile/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kaccang/multi-profile-vpn/main/install.sh | bash
 ```
 
 **DONE!** User cukup tunggu 5-10 menit, semua terinstall otomatis!
@@ -30,13 +30,13 @@ Installer akan melakukan **10 steps** secara otomatis:
 - **bc** (calculator for bandwidth)
 
 ### [3/10] Clone Repository
-- Download dari GitHub ke `/opt/xray-multiprofile`
+- Download dari GitHub ke `/opt/multi-profile-vpn`
 - Set correct permissions
 
 ### [4/10] Create Directories
-- `/opt/xray-multiprofile/data` (database)
-- `/opt/xray-multiprofile/backups` (backup files)
-- `/opt/xray-multiprofile/logs` (log files)
+- `/opt/multi-profile-vpn/data` (database)
+- `/opt/multi-profile-vpn/backups` (backup files)
+- `/opt/multi-profile-vpn/logs` (log files)
 - `/etc/vpn-profiles` (profile configs)
 - `/var/log/vpn` (VPN logs)
 
@@ -304,7 +304,7 @@ Meskipun semua via menu, commands juga tersedia:
 vpn-menu
 
 # Or from installation directory
-/opt/xray-multiprofile/scripts/vpn-menu
+/opt/multi-profile-vpn/scripts/vpn-menu
 
 # Inside container
 /root/container-menu
@@ -317,7 +317,7 @@ vpn-menu
 Setelah instalasi:
 
 ```
-/opt/xray-multiprofile/          # Installation directory
+/opt/multi-profile-vpn/          # Installation directory
 ├── data/
 │   └── app.db                    # SQLite database
 ├── backups/                      # Auto backups
@@ -408,7 +408,7 @@ vpn-menu
 ls -la /usr/local/bin/vpn-menu
 
 # If not found, copy manually
-cp /opt/xray-multiprofile/scripts/vpn-menu /usr/local/bin/
+cp /opt/multi-profile-vpn/scripts/vpn-menu /usr/local/bin/
 chmod +x /usr/local/bin/vpn-menu
 ```
 
@@ -425,10 +425,10 @@ systemctl status docker
 
 ```bash
 # Check database
-ls -la /opt/xray-multiprofile/data/app.db
+ls -la /opt/multi-profile-vpn/data/app.db
 
 # Reinitialize if needed
-sqlite3 /opt/xray-multiprofile/data/app.db < /opt/xray-multiprofile/database-schema.sql
+sqlite3 /opt/multi-profile-vpn/data/app.db < /opt/multi-profile-vpn/database-schema.sql
 ```
 
 ### Cannot connect to profile
@@ -449,7 +449,7 @@ ssh -p 2200 root@localhost
 ## 🔄 Update System
 
 ```bash
-cd /opt/xray-multiprofile
+cd /opt/multi-profile-vpn
 git pull
 chmod +x scripts/*
 chmod +x profile-scripts/*
@@ -468,7 +468,7 @@ docker rm $(docker ps -a -q --filter ancestor=vpn-profile-base)
 docker rmi vpn-profile-base:latest
 
 # Remove installation
-rm -rf /opt/xray-multiprofile
+rm -rf /opt/multi-profile-vpn
 rm -rf /etc/vpn-profiles
 rm -f /etc/vpn-system.conf
 rm -f /usr/local/bin/vpn-menu
@@ -541,9 +541,9 @@ vpn-menu → 8) Monitoring
 
 ## 📞 Support
 
-- **Repository:** https://github.com/kaccang/xray-multiprofile
-- **Issues:** https://github.com/kaccang/xray-multiprofile/issues
-- **Documentation:** See `/opt/xray-multiprofile/docs/`
+- **Repository:** https://github.com/kaccang/multi-profile-vpn
+- **Issues:** https://github.com/kaccang/multi-profile-vpn/issues
+- **Documentation:** See `/opt/multi-profile-vpn/docs/`
 
 ---
 
@@ -565,7 +565,7 @@ vpn-menu → 8) Monitoring
 
 **Just run:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kaccang/xray-multiprofile/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kaccang/multi-profile-vpn/main/install.sh | bash
 ```
 
 **And wait!** ☕️

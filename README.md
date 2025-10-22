@@ -6,16 +6,33 @@ Transform a single VPS into multiple isolated VPN environments, similar to how c
 
 ## ✨ Features
 
-- 🔒 **Profile Isolation**: Each profile runs in isolated Docker container
+### 🚀 Installation & Interface
+- ⚡ **One-Line Installer**: curl | bash - fully automatic installation
+- 🎨 **CLI Semi-GUI**: Beautiful colored interface with real-time system info
+- 📊 **System Dashboard**: Live CPU, RAM, Storage, and Profile count display
+- 🔄 **Auto-Start Menu**: Menu appears automatically on SSH login
+- 🎯 **Easy Navigation**: Numbered menu options (1-9, 0) - no commands to remember
+
+### 🔒 Profile Management
+- 🏠 **Profile Isolation**: Each profile runs in isolated Docker container
 - 🎛️ **Resource Control**: Allocate CPU, RAM, and bandwidth per profile
 - 🔐 **SSH Access**: Each profile has SSH access with custom port (2200-2333)
+- 📋 **Detailed Lists**: Shows name, IP:port, bandwidth usage (TB), days remaining
+- 🔓 **Passwordless Login**: SSH to profiles without password from menu
+- 🎨 **Color-Coded Status**: Green/Yellow/Red based on days remaining
+
+### 🌐 VPN Features
 - 🌐 **Multi-Protocol**: VMess, VLess, and Trojan support
-- 🔄 **Custom Paths**: Configure custom WebSocket paths (not /vmess, /vless, /trojan)
+- 🔄 **Custom Paths**: Configure custom WebSocket paths
 - 🔐 **Centralized SSL**: Automatic SSL with Let's Encrypt (queue-based, anti rate-limit)
+- 📱 **QR Code Generation**: Easy mobile client setup
+- 🎨 **Container Menu**: CLI Semi-GUI inside containers (no manual commands!)
+
+### 📊 Monitoring & Management
 - 📊 **Monitoring**: Health checks, bandwidth tracking, expiration alerts
 - 💾 **Dual Backup**: S3 + rclone (Google Drive, Uloz.to, etc.)
 - 📱 **Telegram Alerts**: Real-time notifications for issues
-- 🎨 **CLI Semi-GUI**: Interactive menu for easy management
+- 🔒 **Security Hardening**: Built-in security fixes and audits
 
 ## 📋 Requirements
 
@@ -29,20 +46,21 @@ Transform a single VPS into multiple isolated VPN environments, similar to how c
 
 ## 🚀 Quick Install
 
-```bash
-# Download and run installer
-curl -fsSL https://raw.githubusercontent.com/kaccang/xray-multiprofile/main/setup.sh -o setup.sh
-chmod +x setup.sh
-sudo ./setup.sh
-```
-
-After installation, SSH to your VPS on port **4444** or **4455** (not 22):
+**NEW: One-Line Automatic Installer!**
 
 ```bash
-ssh root@your-vps-ip -p 4444
+curl -fsSL https://raw.githubusercontent.com/kaccang/multi-profile-vpn/main/install.sh | bash
 ```
 
-The VPS Admin menu will appear automatically.
+**That's it!** Just wait 5-10 minutes for automatic installation:
+- Auto-installs Docker, Nginx, UFW, Fail2ban, SQLite, vnstat
+- Auto-builds Docker base image
+- Auto-initializes database
+- Auto-configures firewall
+- Auto-installs CLI Semi-GUI menu
+- Menu auto-starts on login
+
+The beautiful CLI Semi-GUI menu will appear automatically after installation!
 
 ## 📖 Documentation
 
@@ -196,3 +214,53 @@ See [progress.md](docs/progress.md) for current features and upcoming improvemen
 ---
 
 **Made with ❤️ for efficient VPS resource utilization**
+
+## 🎨 CLI Semi-GUI Interface
+
+The new CLI Semi-GUI provides a beautiful, user-friendly interface:
+
+### Main Menu
+```
+╔══════════════════════════════════════════════════════════╗
+║           MULTI-PROFILE VPN MANAGEMENT                   ║
+╚══════════════════════════════════════════════════════════╝
+
+╔══════════════════ SYSTEM INFO ═══════════════════════════╗
+║  CPU      : 17.3% / 400% (4 cores)
+║  RAM      : 1266/4096 MB
+║  Storage  : 20GB/100GB
+║  Profiles : 3 active
+╚══════════════════════════════════════════════════════════╝
+
+╔══════════════════ MAIN MENU ═════════════════════════════╗
+║  1) Create Profile       # Create new VPN profile
+║  2) Delete Profile       # Remove existing profile
+║  3) List Profiles        # View all profiles
+║  4) Extend Days          # Add more days
+║  5) Extend Bandwidth     # Add more bandwidth (TB)
+║  6) Login Profile        # SSH to profile (no password)
+║  7) Security Hardening   # Apply security fixes
+║  8) Monitoring           # View dashboard
+║  9) Backup Management    # Backup/Restore
+║  0) Exit
+╚══════════════════════════════════════════════════════════╝
+```
+
+### Profile List
+Shows detailed information for each profile:
+- Profile name
+- IP:Port for SSH access
+- Bandwidth usage (e.g., 0.3TB/2.0TB)
+- Days remaining (e.g., 13 days)
+- Color-coded status (green/yellow/red)
+
+### Container Menu
+Inside each profile container, manage VPN accounts via CLI Semi-GUI:
+- Add accounts (VMess/VLess/Trojan)
+- List all accounts with connection links
+- Delete/Renew accounts
+- Generate QR codes for mobile
+- View logs, restart services
+
+**NO MORE** manual commands like `./add-vmess` - everything via beautiful menu!
+

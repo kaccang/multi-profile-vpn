@@ -1,5 +1,6 @@
 #!/bin/bash
-# Profile Extend Expiry - Add days to profile
+# Multi-Profile VPN - Extend Profile Expiry
+# Add more days to profile expiration
 
 # Load config
 if [ -f /etc/vpn-system.conf ]; then
@@ -9,27 +10,55 @@ fi
 VPN_HOME="${VPN_HOME:-/opt/multi-profile-vpn}"
 DB_PATH="${DB_PATH:-$VPN_HOME/data/app.db}"
 
-profile_name="$1"
-add_days="$2"
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-if [ -z "$profile_name" ] || [ -z "$add_days" ]; then
-    echo "Usage: $0 <profile_name> <days>"
+PROFILE_NAME="$1"
+ADD_DAYS="$2"
+
+if [ -z "$PROFILE_NAME" ] || [ -z "$ADD_DAYS" ]; then
+    echo -e "${RED}Error: Missing parameters${NC}"
+    echo "Usage: $0 <profile-name> <days-to-add>"
+    exit 1
+fi
+
+# Check if profile exists
+PROFILE_EXISTS=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles WHERE name='$PROFILE_NAME';" 2>/dev/null)
+
+if [ "$PROFILE_EXISTS" -eq 0 ]; then
+    echo -e "${RED}Error: Profile '$PROFILE_NAME' not found${NC}"
     exit 1
 fi
 
 # Get current expiry
-current_expiry=$(sqlite3 "$DB_PATH" "SELECT expiry_date FROM profiles WHERE name='$profile_name';" 2>/dev/null)
+CURRENT_EXPIRY=$(sqlite3 "$DB_PATH" "SELECT expiry_date FROM profiles WHERE name='$PROFILE_NAME';" 2>/dev/null)
 
-if [ -z "$current_expiry" ]; then
-    echo "Error: Profile not found"
-    exit 1
+if [ -z "$CURRENT_EXPIRY" ]; then
+    # No expiry set, use today as base
+    NEW_EXPIRY=$(date -d "+$ADD_DAYS days" +"%Y-%m-%d")
+else
+    # Add days to current expiry
+    NEW_EXPIRY=$(date -d "$CURRENT_EXPIRY +$ADD_DAYS days" +"%Y-%m-%d")
 fi
 
-# Calculate new expiry
-new_expiry=$(date -d "$current_expiry +$add_days days" '+%Y-%m-%d')
-
 # Update database
-sqlite3 "$DB_PATH" "UPDATE profiles SET expiry_date='$new_expiry', updated_at=CURRENT_TIMESTAMP WHERE name='$profile_name';"
+sqlite3 "$DB_PATH" "UPDATE profiles SET expiry_date='$NEW_EXPIRY', updated_at=datetime('now') WHERE name='$PROFILE_NAME';" 2>/dev/null
 
-echo "✓ Profile '$profile_name' extended by $add_days days"
-echo "New expiry date: $new_expiry"
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✓ Extended expiry for '$PROFILE_NAME'${NC}"
+    echo -e "  New expiry date: ${CYAN}$NEW_EXPIRY${NC}"
+    
+    # Calculate days from now
+    NOW_SECONDS=$(date +%s)
+    EXPIRY_SECONDS=$(date -d "$NEW_EXPIRY" +%s)
+    DAYS_LEFT=$(( ($EXPIRY_SECONDS - $NOW_SECONDS) / 86400 ))
+    
+    echo -e "  Days remaining: ${CYAN}$DAYS_LEFT days${NC}"
+else
+    echo -e "${RED}Error: Failed to update expiry${NC}"
+    exit 1
+fi

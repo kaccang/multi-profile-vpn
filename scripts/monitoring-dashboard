@@ -1,5 +1,6 @@
 #!/bin/bash
-# Monitoring Dashboard - Display system and profile stats
+# Multi-Profile VPN - Monitoring Dashboard
+# Show system and profile statistics
 
 # Load config
 if [ -f /etc/vpn-system.conf ]; then
@@ -13,83 +14,82 @@ DB_PATH="${DB_PATH:-$VPN_HOME/data/app.db}"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m'
 
 clear
-echo -e "${CYAN}╔══════════════════ MONITORING DASHBOARD ═════════════════╗${NC}"
+
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                MONITORING DASHBOARD                      ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# System Stats
-echo -e "${WHITE}SYSTEM STATISTICS:${NC}"
-echo -e "  CPU Usage: $(top -bn1 | grep 'Cpu(s)' | awk '{print $2}')%"
-echo -e "  RAM Usage: $(free -m | awk 'NR==2{printf "%sMB / %sMB (%.1f%%)", $3, $2, $3*100/$2}')"
-echo -e "  Disk Usage: $(df -h / | awk 'NR==2{printf "%s / %s (%s)", $3, $2, $5}')"
+# System Info
+echo -e "${WHITE}╔══ SYSTEM RESOURCES ══╗${NC}"
+CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+CPU_CORES=$(nproc)
+RAM_INFO=$(free -h | awk 'NR==2{printf "%s/%s", $3, $2}')
+DISK_INFO=$(df -h / | awk 'NR==2{printf "%s/%s (%s)", $3, $2, $5}')
+UPTIME=$(uptime -p)
+
+echo -e "  CPU    : ${GREEN}$CPU_USAGE%${NC} of $(($CPU_CORES * 100))% ($CPU_CORES cores)"
+echo -e "  RAM    : ${GREEN}$RAM_INFO${NC}"
+echo -e "  Disk   : ${GREEN}$DISK_INFO${NC}"
+echo -e "  Uptime : ${CYAN}$UPTIME${NC}"
 echo ""
 
-# Profile Stats
-echo -e "${WHITE}PROFILE STATISTICS:${NC}"
-total_profiles=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles;" 2>/dev/null || echo "0")
-active_profiles=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles WHERE status='active';" 2>/dev/null || echo "0")
-stopped_profiles=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles WHERE status='stopped';" 2>/dev/null || echo "0")
+# Profile Statistics
+echo -e "${WHITE}╔══ PROFILE STATISTICS ══╗${NC}"
+TOTAL_PROFILES=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles;" 2>/dev/null || echo "0")
+ACTIVE_PROFILES=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles WHERE status='active';" 2>/dev/null || echo "0")
+EXPIRED_PROFILES=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profiles WHERE expiry_date < date('now');" 2>/dev/null || echo "0")
+TOTAL_ACCOUNTS=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM profile_accounts;" 2>/dev/null || echo "0")
 
-echo -e "  Total Profiles: ${GREEN}$total_profiles${NC}"
-echo -e "  Active: ${GREEN}$active_profiles${NC}"
-echo -e "  Stopped: ${YELLOW}$stopped_profiles${NC}"
+echo -e "  Total Profiles  : ${CYAN}$TOTAL_PROFILES${NC}"
+echo -e "  Active Profiles : ${GREEN}$ACTIVE_PROFILES${NC}"
+echo -e "  Expired Profiles: ${RED}$EXPIRED_PROFILES${NC}"
+echo -e "  Total Accounts  : ${CYAN}$TOTAL_ACCOUNTS${NC}"
 echo ""
 
 # Bandwidth Usage
-echo -e "${WHITE}BANDWIDTH USAGE:${NC}"
-sqlite3 "$DB_PATH" "SELECT name, quota_used_gb, bandwidth_quota_gb FROM profiles ORDER BY quota_used_gb DESC LIMIT 5;" 2>/dev/null | while IFS='|' read -r name used quota; do
-    used_tb=$(echo "scale=2; $used / 1024" | bc 2>/dev/null || echo "0")
-    quota_tb=$(echo "scale=2; $quota / 1024" | bc 2>/dev/null || echo "0")
-    percent=$(echo "scale=1; ($used / $quota) * 100" | bc 2>/dev/null || echo "0")
-    
-    if [ $(echo "$percent > 90" | bc) -eq 1 ]; then
-        color=$RED
-    elif [ $(echo "$percent > 70" | bc) -eq 1 ]; then
-        color=$YELLOW
-    else
-        color=$GREEN
-    fi
-    
-    printf "  %-15s ${color}%6.2f TB${NC} / %6.2f TB (%5.1f%%)\n" "$name" "$used_tb" "$quota_tb" "$percent"
+echo -e "${WHITE}╔══ BANDWIDTH USAGE (TOP 5) ══╗${NC}"
+sqlite3 "$DB_PATH" "SELECT name, ROUND(quota_used_gb/1024.0, 2) || 'TB', ROUND(bandwidth_quota_gb/1024.0, 2) || 'TB' FROM profiles ORDER BY quota_used_gb DESC LIMIT 5;" 2>/dev/null | \
+while IFS='|' read -r name used quota; do
+    echo -e "  ${CYAN}$name${NC}: ${GREEN}$used${NC} / ${YELLOW}$quota${NC}"
 done
 echo ""
 
 # Expiring Soon
-echo -e "${WHITE}EXPIRING SOON (< 7 days):${NC}"
-expiring=$(sqlite3 "$DB_PATH" "SELECT name, expiry_date FROM profiles WHERE julianday(expiry_date) - julianday('now') < 7 AND julianday(expiry_date) - julianday('now') >= 0 ORDER BY expiry_date;" 2>/dev/null)
-
-if [ -z "$expiring" ]; then
-    echo -e "  ${GREEN}No profiles expiring soon${NC}"
-else
-    echo "$expiring" | while IFS='|' read -r name expiry; do
-        days_left=$(( ($(date -d "$expiry" +%s) - $(date +%s)) / 86400 ))
-        
-        if [ $days_left -lt 3 ]; then
-            color=$RED
-        else
-            color=$YELLOW
-        fi
-        
-        echo -e "  ${color}$name${NC}: $days_left days remaining ($expiry)"
-    done
-fi
-echo ""
-
-# Recent Health Checks
-echo -e "${WHITE}RECENT HEALTH CHECKS:${NC}"
-sqlite3 "$DB_PATH" "SELECT profile_name, check_type, status, checked_at FROM health_checks ORDER BY checked_at DESC LIMIT 5;" 2>/dev/null | while IFS='|' read -r name check_type status checked_at; do
-    if [ "$status" = "ok" ] || [ "$status" = "healthy" ]; then
-        status_color=$GREEN
+echo -e "${WHITE}╔══ EXPIRING SOON (7 DAYS) ══╗${NC}"
+sqlite3 "$DB_PATH" "SELECT name, expiry_date, CAST((julianday(expiry_date) - julianday('now')) AS INTEGER) as days_left FROM profiles WHERE expiry_date >= date('now') AND expiry_date <= date('now', '+7 days') ORDER BY expiry_date;" 2>/dev/null | \
+while IFS='|' read -r name expiry days; do
+    if [ "$days" -lt 3 ]; then
+        echo -e "  ${CYAN}$name${NC}: ${RED}$days days${NC} (expires: $expiry)"
     else
-        status_color=$RED
+        echo -e "  ${CYAN}$name${NC}: ${YELLOW}$days days${NC} (expires: $expiry)"
     fi
-    
-    echo -e "  [$checked_at] ${WHITE}$name${NC} - $check_type: ${status_color}$status${NC}"
-done
-
+done || echo -e "  ${GREEN}No profiles expiring soon${NC}"
 echo ""
-echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+
+# Docker Containers
+echo -e "${WHITE}╔══ DOCKER CONTAINERS ══╗${NC}"
+RUNNING_CONTAINERS=$(docker ps --filter "name=vpn-" --format "{{.Names}}" | wc -l)
+STOPPED_CONTAINERS=$(docker ps -a --filter "name=vpn-" --filter "status=exited" --format "{{.Names}}" | wc -l)
+
+echo -e "  Running : ${GREEN}$RUNNING_CONTAINERS${NC}"
+echo -e "  Stopped : ${RED}$STOPPED_CONTAINERS${NC}"
+echo ""
+
+# Recent Actions
+echo -e "${WHITE}╔══ RECENT ACTIONS (LAST 5) ══╗${NC}"
+sqlite3 "$DB_PATH" "SELECT action_type, created_at, status FROM action_history ORDER BY created_at DESC LIMIT 5;" 2>/dev/null | \
+while IFS='|' read -r action time status; do
+    if [ "$status" = "success" ]; then
+        echo -e "  ${GREEN}✓${NC} ${CYAN}$action${NC} - $time"
+    else
+        echo -e "  ${RED}✗${NC} ${CYAN}$action${NC} - $time"
+    fi
+done || echo -e "  ${YELLOW}No recent actions${NC}"
+echo ""
